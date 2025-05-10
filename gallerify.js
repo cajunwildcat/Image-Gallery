@@ -4,9 +4,9 @@ let imageCount = 0;
 $(window).on('load', () => {
     $.getJSON('Photos/photos.json', (data) => {
         data.forEach(file => {
-            if (file.match(/\.(jpe?g|png|gif)$/i)) {
+            if (file.match(/\.(jpe?g|png|gif|webp)$/i)) {
                 imageCount++;
-                $('#gallery').append(`<a href="Photos/${file}" target="_blank"><img src="Photos/${file}"/></a>`);
+                $('#gallery').append(`<a href="Photos/${file}" target="_blank"><img loading="lazy" src="Photos/${file}"/></a>`);
             }
         });
         $('#gallery').justifiedGallery({
