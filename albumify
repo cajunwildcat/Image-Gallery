@@ -10,62 +10,77 @@ function isImageFile(fileName) {
     return imageExtensions.includes(ext);
 }
 
-function convertImageToWebP(filePath, outputDirectory) {
-    const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
-    const outputFilePath = path.join(outputDirectory, `${fileNameWithoutExt}.webp`);
-
-    sharp(filePath)
-        .toFormat('webp')
-        .toFile(outputFilePath, (err, info) => {
-            if (err) {
-                console.error(`Error converting ${filePath} to WebP:`, err);
-            } else {
-                console.log(`Converted ${filePath} to WebP:`, info);
-
-                // Delete the original file after successful conversion
-                fs.unlink(filePath, unlinkErr => {
-                    if (unlinkErr) {
-                        console.error(`Error deleting original file ${filePath}:`, unlinkErr);
-                    } else {
-                        console.log(`Deleted original file: ${filePath}`);
-                    }
-                });
-            }
-        });
-
-    return `${fileNameWithoutExt}.webp`;
+function isWebPFile(fileName) {
+    return path.extname(fileName).toLowerCase() === '.webp';
 }
 
-function generatePhotosJson(directory) {
-    fs.readdir(directory, { withFileTypes: true }, (err, files) => {
-        if (err) {
-            console.error(`Error reading directory: ${directory}`, err);
-            return;
+function convertImageToWebP(filePath, outputDirectory) {
+    return new Promise((resolve, reject) => {
+        const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
+        const outputFilePath = path.join(outputDirectory, `${fileNameWithoutExt}.webp`);
+
+        sharp(filePath)
+            .toFormat('webp')
+            .toFile(outputFilePath, (err, info) => {
+                if (err) {
+                    console.error(`Error converting ${filePath} to WebP:`, err);
+                    reject(err);
+                } else {
+                    console.log(`Converted ${filePath} to WebP:`, info);
+
+                    // Delete the original file after successful conversion
+                    fs.unlink(filePath, unlinkErr => {
+                        if (unlinkErr) {
+                            console.error(`Error deleting original file ${filePath}:`, unlinkErr);
+                            reject(unlinkErr);
+                        } else {
+                            console.log(`Deleted original file: ${filePath}`);
+                            resolve(`${fileNameWithoutExt}.webp`);
+                        }
+                    });
+                }
+            });
+    });
+}
+
+async function generatePhotosJson(directory) {
+    try {
+        const files = await fs.promises.readdir(directory, { withFileTypes: true });
+
+        const imageFiles = [];
+        const conversionPromises = [];
+
+        for (const file of files) {
+            if (file.isFile() && isImageFile(file.name) && !isWebPFile(file.name)) {
+                const filePath = path.join(directory, file.name);
+                conversionPromises.push(
+                    convertImageToWebP(filePath, directory).then(webpFileName => {
+                        imageFiles.push(webpFileName);
+                    })
+                );
+            } else if (file.isFile() && isWebPFile(file.name)) {
+                imageFiles.push(file.name); // Include existing WebP files
+            }
         }
 
-        const imageFiles = files
-            .filter(file => file.isFile() && isImageFile(file.name))
-            .map(file => {
-                const filePath = path.join(directory, file.name);
-                return convertImageToWebP(filePath, directory);
-            });
+        // Wait for all conversions to complete
+        await Promise.all(conversionPromises);
 
         if (imageFiles.length > 0) {
             const jsonFilePath = path.join(directory, 'photos.json');
-            fs.writeFile(jsonFilePath, JSON.stringify(imageFiles, null, 2), err => {
-                if (err) {
-                    console.error(`Error writing photos.json in ${directory}`, err);
-                } else {
-                    console.log(`photos.json created in ${directory}`);
-                }
-            });
+            await fs.promises.writeFile(jsonFilePath, JSON.stringify(imageFiles, null, 2));
+            console.log(`photos.json created in ${directory}`);
         }
 
         // Recursively process subdirectories
-        files
-            .filter(file => file.isDirectory())
-            .forEach(subDir => generatePhotosJson(path.join(directory, subDir.name)));
-    });
+        for (const file of files) {
+            if (file.isDirectory()) {
+                await generatePhotosJson(path.join(directory, file.name));
+            }
+        }
+    } catch (err) {
+        console.error(`Error processing directory: ${directory}`, err);
+    }
 }
 
 // Replace with the root directory you want to process
