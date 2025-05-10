@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="../justifiedGallery.min.css" />
+    <script src="../jquery.justifiedGallery.min.js"></script>
+    <script type="text/javascript">
+        let title = decodeURIComponent(location.pathname.split('/').slice(-2, -1)[0]);
+        document.title = title;
+        let imageCount = 0;
+        $(window).on('load', () => {
+            $.get('Photos', (data) => {
+                $(data).find('a').each(function () {
+                    const file = $(this).attr('href');
+                    if (file && file.match(/\.(jpe?g|png|gif)$/i)) {
+                        imageCount++;
+                        $('#gallery').append(`<a href="${file}" target="_blank"><img src="${file}"/></a>`);
+                    }
+                });
+                $('#gallery').justifiedGallery({
+                    rowHeight: 360,
+                    margins: 6
+                });
+                $('#title').text(`${title}`).after(`<h2>${imageCount} Images</h2>`);
+            });
+        });
+    </script>
+    <style>
+        body {
+            background-color: #1b1b1b;
+            padding: 5px;
+            color: aliceblue;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 id="title"></h1>
+    <div id="gallery"></div>
+</body>
+
+</html>
