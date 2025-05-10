@@ -1,0 +1,44 @@
+const fs = require('fs');
+const path = require('path');
+
+// Supported image file extensions
+const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+
+function isImageFile(fileName) {
+    const ext = path.extname(fileName).toLowerCase();
+    return imageExtensions.includes(ext);
+}
+
+function generatePhotosJson(directory) {
+    fs.readdir(directory, { withFileTypes: true }, (err, files) => {
+        if (err) {
+            console.error(`Error reading directory: ${directory}`, err);
+            return;
+        }
+
+        const imageFiles = files
+            .filter(file => file.isFile() && isImageFile(file.name))
+            .map(file => file.name);
+
+        if (imageFiles.length > 0) {
+            const jsonFilePath = path.join(directory, 'photos.json');
+            fs.writeFile(jsonFilePath, JSON.stringify(imageFiles, null, 2), err => {
+                if (err) {
+                    console.error(`Error writing photos.json in ${directory}`, err);
+                } else {
+                    console.log(`photos.json created in ${directory}`);
+                }
+            });
+        }
+
+        // Recursively process subdirectories
+        files
+            .filter(file => file.isDirectory())
+            .forEach(subDir => generatePhotosJson(path.join(directory, subDir.name)));
+    });
+}
+
+// Replace with the root directory you want to process
+const rootDirectory = path.resolve(__dirname);
+
+generatePhotosJson(rootDirectory);
