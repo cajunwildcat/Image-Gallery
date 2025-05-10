@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const sharp = require('sharp'); // Image processing library
 
 // Supported image file extensions
 const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
@@ -7,6 +8,32 @@ const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
 function isImageFile(fileName) {
     const ext = path.extname(fileName).toLowerCase();
     return imageExtensions.includes(ext);
+}
+
+function convertImageToWebP(filePath, outputDirectory) {
+    const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
+    const outputFilePath = path.join(outputDirectory, `${fileNameWithoutExt}.webp`);
+
+    sharp(filePath)
+        .toFormat('webp')
+        .toFile(outputFilePath, (err, info) => {
+            if (err) {
+                console.error(`Error converting ${filePath} to WebP:`, err);
+            } else {
+                console.log(`Converted ${filePath} to WebP:`, info);
+
+                // Delete the original file after successful conversion
+                fs.unlink(filePath, unlinkErr => {
+                    if (unlinkErr) {
+                        console.error(`Error deleting original file ${filePath}:`, unlinkErr);
+                    } else {
+                        console.log(`Deleted original file: ${filePath}`);
+                    }
+                });
+            }
+        });
+
+    return `${fileNameWithoutExt}.webp`;
 }
 
 function generatePhotosJson(directory) {
@@ -18,7 +45,10 @@ function generatePhotosJson(directory) {
 
         const imageFiles = files
             .filter(file => file.isFile() && isImageFile(file.name))
-            .map(file => file.name);
+            .map(file => {
+                const filePath = path.join(directory, file.name);
+                return convertImageToWebP(filePath, directory);
+            });
 
         if (imageFiles.length > 0) {
             const jsonFilePath = path.join(directory, 'photos.json');
